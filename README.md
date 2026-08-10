@@ -1,16 +1,34 @@
-# React + Vite
+# 🏆 PokéLeague Manager
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Sistema gratuito para organizar torneos de Pokémon TCG.
 
-Currently, two official plugins are available:
+## Estado del proyecto
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Versión 0.1.0
 
-## React Compiler
+## Tecnologías
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React
+- Vite
+- Material UI
+- React Router
+- JavaScript
 
-## Expanding the ESLint configuration
+## Funciones previstas
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- Gestión de jugadores
+- Creación de torneos
+- Rondas suizas
+- Registro de victorias, derrotas y empates
+- BYE automático
+- Clasificación
+- Top Cut
+- Historial de torneos
+
+## Objetivo
+
+Crear una herramienta sencilla y gratuita para que los organizadores puedan administrar torneos presenciales de Pokémon TCG.
+
+---
+
+Proyecto desarrollado por `marce88rgtdf-afk`.
