@@ -1,4 +1,11 @@
-import { Button, Container, Stack, Typography } from "@mui/material";
+import {
+  Button,
+  Container,
+  Stack,
+  Typography,
+} from "@mui/material";
+
+import { Link } from "react-router-dom";
 
 export default function Dashboard() {
   return (
@@ -12,20 +19,34 @@ export default function Dashboard() {
       </Typography>
 
       <Stack spacing={2} mt={4}>
-        <Button variant="contained">
-          Nuevo Torneo
+        <Button
+          component={Link}
+          to="/tournament"
+          variant="contained"
+        >
+          🏆 Nuevo Torneo
         </Button>
 
-        <Button variant="contained">
-          Jugadores
+        <Button
+          component={Link}
+          to="/players"
+          variant="contained"
+        >
+          👥 Jugadores
         </Button>
 
-        <Button variant="contained">
-          Ranking
+        <Button
+          component={Link}
+          to="/standings"
+          variant="contained"
+        >
+          📊 Ranking
         </Button>
 
-        <Button variant="contained">
-          Configuración
+        <Button
+          variant="contained"
+        >
+          ⚙️ Configuración
         </Button>
       </Stack>
     </Container>
