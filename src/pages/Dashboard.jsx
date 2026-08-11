@@ -11,7 +11,7 @@ export default function Dashboard() {
   return (
     <Container sx={{ mt: 4 }}>
       <Typography variant="h3" gutterBottom>
-        PokéLeague Manager
+        🏆 PokéLeague Manager
       </Typography>
 
       <Typography>
@@ -41,6 +41,14 @@ export default function Dashboard() {
           variant="contained"
         >
           📊 Ranking
+        </Button>
+
+        <Button
+          component={Link}
+          to="/my-tournaments"
+          variant="contained"
+        >
+          🏆 Mis Torneos
         </Button>
 
         <Button
