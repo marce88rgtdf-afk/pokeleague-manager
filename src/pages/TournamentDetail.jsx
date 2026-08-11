@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import {
   Button,
   Card,
@@ -17,17 +18,7 @@ import {
   saveTournaments,
 } from "../services/storage";
 
-function shuffle(array) {
-  const result = [...array];
-
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-
-  return result;
-}
+import { generateNextRound } from "../services/swiss";
 
 export default function TournamentDetail() {
   const { tournamentId } = useParams();
@@ -78,51 +69,25 @@ export default function TournamentDetail() {
     return `${player.name} ${player.lastName}`;
   };
 
+  // --------------------------------------------------
+  // GENERAR RONDA 1
+  // --------------------------------------------------
+
   const generateRoundOne = () => {
     if (rounds.length > 0) {
       alert("La Ronda 1 ya fue generada.");
       return;
     }
 
-    const shuffledPlayers = shuffle(tournamentPlayers);
-
-    const matches = [];
-
-    let matchNumber = 1;
-
-    for (
-      let index = 0;
-      index + 1 < shuffledPlayers.length;
-      index += 2
-    ) {
-      matches.push({
-        id: crypto.randomUUID(),
-        table: matchNumber,
-        player1Id: shuffledPlayers[index].id,
-        player2Id: shuffledPlayers[index + 1].id,
-        result: null,
-      });
-
-      matchNumber++;
-    }
-
-    let bye = null;
-
-    if (shuffledPlayers.length % 2 !== 0) {
-      const byePlayer =
-        shuffledPlayers[shuffledPlayers.length - 1];
-
-      bye = {
-        playerId: byePlayer.id,
-        result: "BYE",
-        points: 3,
-      };
-    }
+    const newRoundData = generateNextRound(
+      tournamentPlayers,
+      []
+    );
 
     const round = {
       number: 1,
-      matches,
-      bye,
+      matches: newRoundData.matches,
+      bye: newRoundData.bye,
       createdAt: new Date().toISOString(),
     };
 
@@ -143,12 +108,67 @@ export default function TournamentDetail() {
     alert("Ronda 1 generada correctamente.");
   };
 
+  // --------------------------------------------------
+  // GENERAR SIGUIENTE RONDA
+  // --------------------------------------------------
+
+  const generateNextTournamentRound = () => {
+    if (rounds.length === 0) {
+      alert("Primero tenés que generar la Ronda 1.");
+      return;
+    }
+
+    const currentRound = rounds[rounds.length - 1];
+
+    const pendingResults = currentRound.matches.some(
+      (match) => !match.result
+    );
+
+    if (pendingResults) {
+      alert(
+        "No podés generar la siguiente ronda porque todavía hay resultados pendientes."
+      );
+
+      return;
+    }
+
+    const newRoundData = generateNextRound(
+      tournamentPlayers,
+      rounds
+    );
+
+    const newRound = {
+      number: rounds.length + 1,
+      matches: newRoundData.matches,
+      bye: newRoundData.bye,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedTournament = {
+      ...tournament,
+      rounds: [...rounds, newRound],
+    };
+
+    const updatedTournaments = tournaments.map((item) =>
+      item.id === tournament.id
+        ? updatedTournament
+        : item
+    );
+
+    saveTournaments(updatedTournaments);
+    setTournaments(updatedTournaments);
+
+    alert(
+      `Ronda ${newRound.number} generada correctamente.`
+    );
+  };
+
+  // --------------------------------------------------
+  // GUARDAR RESULTADO
+  // --------------------------------------------------
+
   const saveMatchResult = (matchId, result) => {
     const updatedRounds = rounds.map((round) => {
-      if (round.number !== 1) {
-        return round;
-      }
-
       const updatedMatches = round.matches.map((match) => {
         if (match.id !== matchId) {
           return match;
@@ -201,17 +221,25 @@ export default function TournamentDetail() {
     setTournaments(updatedTournaments);
   };
 
+  // --------------------------------------------------
+  // TEXTO DEL RESULTADO
+  // --------------------------------------------------
+
   const getResultText = (match) => {
     if (!match.result) {
       return "Resultado pendiente";
     }
 
     if (match.result === "PLAYER1_WIN") {
-      return `Victoria de ${getPlayerName(match.player1Id)}`;
+      return `Victoria de ${getPlayerName(
+        match.player1Id
+      )}`;
     }
 
     if (match.result === "PLAYER2_WIN") {
-      return `Victoria de ${getPlayerName(match.player2Id)}`;
+      return `Victoria de ${getPlayerName(
+        match.player2Id
+      )}`;
     }
 
     if (match.result === "DRAW") {
@@ -220,6 +248,10 @@ export default function TournamentDetail() {
 
     return "Resultado pendiente";
   };
+
+  // --------------------------------------------------
+  // INTERFAZ
+  // --------------------------------------------------
 
   return (
     <Container sx={{ mt: 4, mb: 4 }}>
@@ -235,13 +267,18 @@ export default function TournamentDetail() {
         Formato: {tournament.format}
       </Typography>
 
+      {/* PARTICIPANTES */}
+
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             👥 Participantes
           </Typography>
 
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
+          <Typography
+            color="text.secondary"
+            sx={{ mb: 2 }}
+          >
             {tournamentPlayers.length} jugadores
           </Typography>
 
@@ -256,19 +293,24 @@ export default function TournamentDetail() {
         </CardContent>
       </Card>
 
+      {/* RONDAS */}
+
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             🎲 Rondas
           </Typography>
 
-          {rounds.length === 0 ? (
+          {/* SIN RONDAS */}
+
+          {rounds.length === 0 && (
             <>
               <Typography
                 color="text.secondary"
                 sx={{ mb: 3 }}
               >
-                El torneo todavía no tiene rondas generadas.
+                El torneo todavía no tiene rondas
+                generadas.
               </Typography>
 
               <Button
@@ -279,10 +321,17 @@ export default function TournamentDetail() {
                 🎲 Generar Ronda 1
               </Button>
             </>
-          ) : (
+          )}
+
+          {/* CON RONDAS */}
+
+          {rounds.length > 0 && (
             <Stack spacing={3}>
               {rounds.map((round) => (
-                <Card key={round.number} variant="outlined">
+                <Card
+                  key={round.number}
+                  variant="outlined"
+                >
                   <CardContent>
                     <Typography
                       variant="h5"
@@ -307,7 +356,9 @@ export default function TournamentDetail() {
                             </Typography>
 
                             <Typography variant="h6">
-                              {getPlayerName(match.player1Id)}
+                              {getPlayerName(
+                                match.player1Id
+                              )}
                             </Typography>
 
                             <Typography
@@ -320,7 +371,9 @@ export default function TournamentDetail() {
                             </Typography>
 
                             <Typography variant="h6">
-                              {getPlayerName(match.player2Id)}
+                              {getPlayerName(
+                                match.player2Id
+                              )}
                             </Typography>
 
                             <Divider sx={{ my: 2 }} />
@@ -416,6 +469,8 @@ export default function TournamentDetail() {
                         </Card>
                       ))}
 
+                      {/* BYE */}
+
                       {round.bye && (
                         <Card variant="outlined">
                           <CardContent>
@@ -442,6 +497,16 @@ export default function TournamentDetail() {
                   </CardContent>
                 </Card>
               ))}
+
+              {/* SIGUIENTE RONDA */}
+
+              <Button
+                variant="contained"
+                size="large"
+                onClick={generateNextTournamentRound}
+              >
+                🎲 Generar Ronda {rounds.length + 1}
+              </Button>
             </Stack>
           )}
         </CardContent>
