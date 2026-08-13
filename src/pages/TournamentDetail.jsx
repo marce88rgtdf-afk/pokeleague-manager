@@ -18,7 +18,10 @@ import {
   saveTournaments,
 } from "../services/storage";
 
-import { generateNextRound } from "../services/swiss";
+import {
+  generateNextRound,
+  calculatePlayerPoints,
+} from "../services/swiss";
 
 export default function TournamentDetail() {
   const { tournamentId } = useParams();
@@ -57,6 +60,35 @@ export default function TournamentDetail() {
 
   const rounds = tournament.rounds || [];
 
+  /*
+   * ==================================================
+   * RONDAS CONFIGURADAS
+   * ==================================================
+   */
+
+  const configuredRounds =
+    tournament.roundsToPlay ||
+    tournament.totalRounds ||
+    tournament.numberOfRounds ||
+    tournament.roundsConfigured ||
+    0;
+
+  /*
+   * ==================================================
+   * ESTADO DEL TORNEO
+   * ==================================================
+   */
+
+  const tournamentFinished =
+    configuredRounds > 0 &&
+    rounds.length >= configuredRounds;
+
+  /*
+   * ==================================================
+   * NOMBRE DEL JUGADOR
+   * ==================================================
+   */
+
   const getPlayerName = (playerId) => {
     const player = players.find(
       (item) => item.id === playerId
@@ -69,13 +101,20 @@ export default function TournamentDetail() {
     return `${player.name} ${player.lastName}`;
   };
 
-  // --------------------------------------------------
-  // GENERAR RONDA 1
-  // --------------------------------------------------
+  /*
+   * ==================================================
+   * GENERAR RONDA 1
+   * ==================================================
+   */
 
   const generateRoundOne = () => {
     if (rounds.length > 0) {
       alert("La Ronda 1 ya fue generada.");
+      return;
+    }
+
+    if (tournamentFinished) {
+      alert("El torneo ya está finalizado.");
       return;
     }
 
@@ -96,10 +135,11 @@ export default function TournamentDetail() {
       rounds: [round],
     };
 
-    const updatedTournaments = tournaments.map((item) =>
-      item.id === tournament.id
-        ? updatedTournament
-        : item
+    const updatedTournaments = tournaments.map(
+      (item) =>
+        item.id === tournament.id
+          ? updatedTournament
+          : item
     );
 
     saveTournaments(updatedTournaments);
@@ -108,21 +148,36 @@ export default function TournamentDetail() {
     alert("Ronda 1 generada correctamente.");
   };
 
-  // --------------------------------------------------
-  // GENERAR SIGUIENTE RONDA
-  // --------------------------------------------------
+  /*
+   * ==================================================
+   * GENERAR SIGUIENTE RONDA
+   * ==================================================
+   */
 
   const generateNextTournamentRound = () => {
-    if (rounds.length === 0) {
-      alert("Primero tenés que generar la Ronda 1.");
+    if (tournamentFinished) {
+      alert(
+        "El torneo ya finalizó. No se pueden generar más rondas."
+      );
+
       return;
     }
 
-    const currentRound = rounds[rounds.length - 1];
+    if (rounds.length === 0) {
+      alert(
+        "Primero tenés que generar la Ronda 1."
+      );
 
-    const pendingResults = currentRound.matches.some(
-      (match) => !match.result
-    );
+      return;
+    }
+
+    const currentRound =
+      rounds[rounds.length - 1];
+
+    const pendingResults =
+      currentRound.matches.some(
+        (match) => !match.result
+      );
 
     if (pendingResults) {
       alert(
@@ -132,10 +187,27 @@ export default function TournamentDetail() {
       return;
     }
 
-    const newRoundData = generateNextRound(
-      tournamentPlayers,
-      rounds
-    );
+    /*
+     * Si ya se completaron todas las rondas
+     * configuradas, el torneo finaliza.
+     */
+
+    if (
+      configuredRounds > 0 &&
+      rounds.length >= configuredRounds
+    ) {
+      alert(
+        "Se completaron todas las rondas configuradas. El torneo ha finalizado."
+      );
+
+      return;
+    }
+
+    const newRoundData =
+      generateNextRound(
+        tournamentPlayers,
+        rounds
+      );
 
     const newRound = {
       number: rounds.length + 1,
@@ -146,116 +218,358 @@ export default function TournamentDetail() {
 
     const updatedTournament = {
       ...tournament,
-      rounds: [...rounds, newRound],
+      rounds: [
+        ...rounds,
+        newRound,
+      ],
     };
 
-    const updatedTournaments = tournaments.map((item) =>
-      item.id === tournament.id
-        ? updatedTournament
-        : item
+    const updatedTournaments =
+      tournaments.map(
+        (item) =>
+          item.id === tournament.id
+            ? updatedTournament
+            : item
+      );
+
+    saveTournaments(
+      updatedTournaments
     );
 
-    saveTournaments(updatedTournaments);
-    setTournaments(updatedTournaments);
+    setTournaments(
+      updatedTournaments
+    );
 
     alert(
       `Ronda ${newRound.number} generada correctamente.`
     );
   };
 
-  // --------------------------------------------------
-  // GUARDAR RESULTADO
-  // --------------------------------------------------
+  /*
+   * ==================================================
+   * GUARDAR RESULTADO
+   * ==================================================
+   */
 
-  const saveMatchResult = (matchId, result) => {
-    const updatedRounds = rounds.map((round) => {
-      const updatedMatches = round.matches.map((match) => {
-        if (match.id !== matchId) {
-          return match;
-        }
+  const saveMatchResult = (
+    matchId,
+    result
+  ) => {
+    /*
+     * No permitimos modificar resultados
+     * si el torneo ya está finalizado.
+     */
 
-        let player1Points = 0;
-        let player2Points = 0;
+    if (tournamentFinished) {
+      alert(
+        "El torneo ya está finalizado. Los resultados finales no pueden modificarse."
+      );
 
-        if (result === "PLAYER1_WIN") {
-          player1Points = 3;
-          player2Points = 0;
-        }
+      return;
+    }
 
-        if (result === "DRAW") {
-          player1Points = 1;
-          player2Points = 1;
-        }
+    const updatedRounds =
+      rounds.map((round) => {
+        const updatedMatches =
+          round.matches.map(
+            (match) => {
+              if (
+                match.id !== matchId
+              ) {
+                return match;
+              }
 
-        if (result === "PLAYER2_WIN") {
-          player1Points = 0;
-          player2Points = 3;
-        }
+              let player1Points = 0;
+              let player2Points = 0;
+
+              if (
+                result ===
+                "PLAYER1_WIN"
+              ) {
+                player1Points = 3;
+                player2Points = 0;
+              }
+
+              if (
+                result === "DRAW"
+              ) {
+                player1Points = 1;
+                player2Points = 1;
+              }
+
+              if (
+                result ===
+                "PLAYER2_WIN"
+              ) {
+                player1Points = 0;
+                player2Points = 3;
+              }
+
+              return {
+                ...match,
+                result,
+                player1Points,
+                player2Points,
+              };
+            }
+          );
 
         return {
-          ...match,
-          result,
-          player1Points,
-          player2Points,
+          ...round,
+          matches:
+            updatedMatches,
         };
       });
 
-      return {
-        ...round,
-        matches: updatedMatches,
-      };
-    });
-
     const updatedTournament = {
       ...tournament,
-      rounds: updatedRounds,
+      rounds:
+        updatedRounds,
     };
 
-    const updatedTournaments = tournaments.map((item) =>
-      item.id === tournament.id
-        ? updatedTournament
-        : item
+    const updatedTournaments =
+      tournaments.map(
+        (item) =>
+          item.id === tournament.id
+            ? updatedTournament
+            : item
+      );
+
+    saveTournaments(
+      updatedTournaments
     );
 
-    saveTournaments(updatedTournaments);
-    setTournaments(updatedTournaments);
+    setTournaments(
+      updatedTournaments
+    );
   };
 
-  // --------------------------------------------------
-  // TEXTO DEL RESULTADO
-  // --------------------------------------------------
+  /*
+   * ==================================================
+   * TEXTO DEL RESULTADO
+   * ==================================================
+   */
 
-  const getResultText = (match) => {
+  const getResultText = (
+    match
+  ) => {
     if (!match.result) {
       return "Resultado pendiente";
     }
 
-    if (match.result === "PLAYER1_WIN") {
+    if (
+      match.result ===
+      "PLAYER1_WIN"
+    ) {
       return `Victoria de ${getPlayerName(
         match.player1Id
       )}`;
     }
 
-    if (match.result === "PLAYER2_WIN") {
+    if (
+      match.result ===
+      "PLAYER2_WIN"
+    ) {
       return `Victoria de ${getPlayerName(
         match.player2Id
       )}`;
     }
 
-    if (match.result === "DRAW") {
+    if (
+      match.result === "DRAW"
+    ) {
       return "🤝 Empate";
     }
 
     return "Resultado pendiente";
   };
 
-  // --------------------------------------------------
-  // INTERFAZ
-  // --------------------------------------------------
+  /*
+   * ==================================================
+   * RANKING FINAL
+   * ==================================================
+   */
+
+  const calculateFinalRanking =
+    () => {
+      const ranking =
+        tournamentPlayers.map(
+          (player) => {
+            let wins = 0;
+            let draws = 0;
+            let losses = 0;
+            let byes = 0;
+
+            rounds.forEach(
+              (round) => {
+                round.matches?.forEach(
+                  (match) => {
+                    if (
+                      match.player1Id !==
+                        player.id &&
+                      match.player2Id !==
+                        player.id
+                    ) {
+                      return;
+                    }
+
+                    if (
+                      match.result ===
+                      "DRAW"
+                    ) {
+                      draws++;
+                    }
+
+                    if (
+                      match.result ===
+                      "PLAYER1_WIN"
+                    ) {
+                      if (
+                        match.player1Id ===
+                        player.id
+                      ) {
+                        wins++;
+                      } else {
+                        losses++;
+                      }
+                    }
+
+                    if (
+                      match.result ===
+                      "PLAYER2_WIN"
+                    ) {
+                      if (
+                        match.player2Id ===
+                        player.id
+                      ) {
+                        wins++;
+                      } else {
+                        losses++;
+                      }
+                    }
+                  }
+                );
+
+                if (
+                  round.bye?.playerId ===
+                  player.id
+                ) {
+                  byes++;
+                }
+              }
+            );
+
+            const points =
+              calculatePlayerPoints(
+                player.id,
+                rounds
+              );
+
+            return {
+              playerId:
+                player.id,
+
+              name: `${player.name} ${player.lastName}`,
+
+              category:
+                player.category ||
+                "",
+
+              points,
+
+              wins,
+
+              draws,
+
+              losses,
+
+              byes,
+            };
+          }
+        );
+
+      /*
+       * Orden del ranking:
+       *
+       * 1. Puntos
+       * 2. Victorias
+       * 3. Diferencia V-D
+       * 4. Nombre
+       */
+
+      return ranking.sort(
+        (a, b) => {
+          if (
+            b.points !==
+            a.points
+          ) {
+            return (
+              b.points -
+              a.points
+            );
+          }
+
+          if (
+            b.wins !==
+            a.wins
+          ) {
+            return (
+              b.wins -
+              a.wins
+            );
+          }
+
+          const scoreA =
+            a.wins -
+            a.losses;
+
+          const scoreB =
+            b.wins -
+            b.losses;
+
+          if (
+            scoreB !==
+            scoreA
+          ) {
+            return (
+              scoreB -
+              scoreA
+            );
+          }
+
+          return a.name.localeCompare(
+            b.name
+          );
+        }
+      );
+    };
+
+  const finalRanking =
+    tournamentFinished
+      ? calculateFinalRanking()
+      : [];
+
+  /*
+   * ==================================================
+   * INTERFAZ
+   * ==================================================
+   */
 
   return (
-    <Container sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" gutterBottom>
+    <Container
+      sx={{
+        mt: 4,
+        mb: 4,
+      }}
+    >
+      {/* ================================================
+          CABECERA
+          ================================================ */}
+
+      <Typography
+        variant="h4"
+        gutterBottom
+      >
         🏆 {tournament.name}
       </Typography>
 
@@ -263,15 +577,75 @@ export default function TournamentDetail() {
         Fecha: {tournament.date}
       </Typography>
 
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Formato: {tournament.format}
+      <Typography
+        color="text.secondary"
+        sx={{ mb: 2 }}
+      >
+        Formato:{" "}
+        {tournament.format}
       </Typography>
 
-      {/* PARTICIPANTES */}
+      {configuredRounds >
+        0 && (
+        <Typography
+          color="text.secondary"
+          sx={{ mb: 3 }}
+        >
+          🎲 Rondas configuradas:{" "}
+          {configuredRounds}
+        </Typography>
+      )}
+
+      {/* ================================================
+          ESTADO DEL TORNEO
+          ================================================ */}
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography
+            variant="h6"
+            gutterBottom
+          >
+            📊 Estado del torneo
+          </Typography>
+
+          {configuredRounds >
+          0 ? (
+            <>
+              <Typography>
+                Rondas jugadas:{" "}
+                {rounds.length} /{" "}
+                {configuredRounds}
+              </Typography>
+
+              {tournamentFinished && (
+                <Typography
+                  variant="h6"
+                  sx={{ mt: 1 }}
+                >
+                  🏁 Torneo finalizado
+                </Typography>
+              )}
+            </>
+          ) : (
+            <Typography>
+              Rondas jugadas:{" "}
+              {rounds.length}
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ================================================
+          PARTICIPANTES
+          ================================================ */}
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography
+            variant="h6"
+            gutterBottom
+          >
             👥 Participantes
           </Typography>
 
@@ -279,44 +653,59 @@ export default function TournamentDetail() {
             color="text.secondary"
             sx={{ mb: 2 }}
           >
-            {tournamentPlayers.length} jugadores
+            {tournamentPlayers.length}{" "}
+            jugadores
           </Typography>
 
           <Stack spacing={1}>
-            {tournamentPlayers.map((player) => (
-              <Typography key={player.id}>
-                👤 {player.name} {player.lastName} —{" "}
-                {player.category}
-              </Typography>
-            ))}
+            {tournamentPlayers.map(
+              (player) => (
+                <Typography
+                  key={player.id}
+                >
+                  👤 {player.name}{" "}
+                  {player.lastName} —{" "}
+                  {player.category}
+                </Typography>
+              )
+            )}
           </Stack>
         </CardContent>
       </Card>
 
-      {/* RONDAS */}
+      {/* ================================================
+          RONDAS
+          ================================================ */}
 
       <Card>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography
+            variant="h6"
+            gutterBottom
+          >
             🎲 Rondas
           </Typography>
 
           {/* SIN RONDAS */}
 
-          {rounds.length === 0 && (
+          {rounds.length ===
+            0 && (
             <>
               <Typography
                 color="text.secondary"
                 sx={{ mb: 3 }}
               >
-                El torneo todavía no tiene rondas
+                El torneo todavía no
+                tiene rondas
                 generadas.
               </Typography>
 
               <Button
                 variant="contained"
                 size="large"
-                onClick={generateRoundOne}
+                onClick={
+                  generateRoundOne
+                }
               >
                 🎲 Generar Ronda 1
               </Button>
@@ -325,188 +714,606 @@ export default function TournamentDetail() {
 
           {/* CON RONDAS */}
 
-          {rounds.length > 0 && (
+          {rounds.length >
+            0 && (
             <Stack spacing={3}>
-              {rounds.map((round) => (
-                <Card
-                  key={round.number}
-                  variant="outlined"
-                >
-                  <CardContent>
-                    <Typography
-                      variant="h5"
-                      gutterBottom
-                    >
-                      Ronda {round.number}
-                    </Typography>
+              {rounds.map(
+                (round) => (
+                  <Card
+                    key={
+                      round.number
+                    }
+                    variant="outlined"
+                  >
+                    <CardContent>
+                      <Typography
+                        variant="h5"
+                        gutterBottom
+                      >
+                        Ronda{" "}
+                        {
+                          round.number
+                        }
+                      </Typography>
 
-                    <Stack spacing={3}>
-                      {round.matches.map((match) => (
-                        <Card
-                          key={match.id}
-                          variant="outlined"
-                        >
-                          <CardContent>
-                            <Typography
-                              variant="subtitle2"
-                              color="text.secondary"
-                              gutterBottom
+                      <Stack
+                        spacing={3}
+                      >
+                        {round.matches.map(
+                          (
+                            match
+                          ) => (
+                            <Card
+                              key={
+                                match.id
+                              }
+                              variant="outlined"
                             >
-                              Mesa {match.table}
-                            </Typography>
+                              <CardContent>
+                                <Typography
+                                  variant="subtitle2"
+                                  color="text.secondary"
+                                  gutterBottom
+                                >
+                                  Mesa{" "}
+                                  {
+                                    match.table
+                                  }
+                                </Typography>
 
-                            <Typography variant="h6">
-                              {getPlayerName(
-                                match.player1Id
-                              )}
-                            </Typography>
+                                <Typography variant="h6">
+                                  {getPlayerName(
+                                    match.player1Id
+                                  )}
+                                </Typography>
 
-                            <Typography
-                              sx={{
-                                textAlign: "center",
-                                my: 1,
-                              }}
-                            >
-                              VS
-                            </Typography>
+                                <Typography
+                                  sx={{
+                                    textAlign:
+                                      "center",
+                                    my: 1,
+                                  }}
+                                >
+                                  VS
+                                </Typography>
 
-                            <Typography variant="h6">
-                              {getPlayerName(
-                                match.player2Id
-                              )}
-                            </Typography>
+                                <Typography variant="h6">
+                                  {getPlayerName(
+                                    match.player2Id
+                                  )}
+                                </Typography>
 
-                            <Divider sx={{ my: 2 }} />
+                                <Divider
+                                  sx={{
+                                    my: 2,
+                                  }}
+                                />
 
-                            <Typography
-                              sx={{ mb: 2 }}
-                              fontWeight="bold"
-                            >
-                              {getResultText(match)}
-                            </Typography>
+                                <Typography
+                                  sx={{
+                                    mb: 2,
+                                  }}
+                                  fontWeight="bold"
+                                >
+                                  {getResultText(
+                                    match
+                                  )}
+                                </Typography>
 
-                            <Stack
-                              direction={{
-                                xs: "column",
-                                sm: "row",
-                              }}
-                              spacing={1}
-                            >
-                              <Button
-                                variant={
-                                  match.result ===
-                                  "PLAYER1_WIN"
-                                    ? "contained"
-                                    : "outlined"
-                                }
-                                onClick={() =>
-                                  saveMatchResult(
-                                    match.id,
-                                    "PLAYER1_WIN"
-                                  )
-                                }
-                              >
-                                🟢 Gana{" "}
-                                {getPlayerName(
-                                  match.player1Id
+                                {!tournamentFinished && (
+                                  <Stack
+                                    direction={{
+                                      xs: "column",
+                                      sm: "row",
+                                    }}
+                                    spacing={
+                                      1
+                                    }
+                                  >
+                                    <Button
+                                      variant={
+                                        match.result ===
+                                        "PLAYER1_WIN"
+                                          ? "contained"
+                                          : "outlined"
+                                      }
+                                      onClick={() =>
+                                        saveMatchResult(
+                                          match.id,
+                                          "PLAYER1_WIN"
+                                        )
+                                      }
+                                    >
+                                      🟢 Gana{" "}
+                                      {getPlayerName(
+                                        match.player1Id
+                                      )}
+                                    </Button>
+
+                                    <Button
+                                      variant={
+                                        match.result ===
+                                        "DRAW"
+                                          ? "contained"
+                                          : "outlined"
+                                      }
+                                      onClick={() =>
+                                        saveMatchResult(
+                                          match.id,
+                                          "DRAW"
+                                        )
+                                      }
+                                    >
+                                      🤝 Empate
+                                    </Button>
+
+                                    <Button
+                                      variant={
+                                        match.result ===
+                                        "PLAYER2_WIN"
+                                          ? "contained"
+                                          : "outlined"
+                                      }
+                                      onClick={() =>
+                                        saveMatchResult(
+                                          match.id,
+                                          "PLAYER2_WIN"
+                                        )
+                                      }
+                                    >
+                                      🟢 Gana{" "}
+                                      {getPlayerName(
+                                        match.player2Id
+                                      )}
+                                    </Button>
+                                  </Stack>
                                 )}
-                              </Button>
 
-                              <Button
-                                variant={
-                                  match.result === "DRAW"
-                                    ? "contained"
-                                    : "outlined"
-                                }
-                                onClick={() =>
-                                  saveMatchResult(
-                                    match.id,
-                                    "DRAW"
-                                  )
-                                }
-                              >
-                                🤝 Empate
-                              </Button>
-
-                              <Button
-                                variant={
-                                  match.result ===
-                                  "PLAYER2_WIN"
-                                    ? "contained"
-                                    : "outlined"
-                                }
-                                onClick={() =>
-                                  saveMatchResult(
-                                    match.id,
-                                    "PLAYER2_WIN"
-                                  )
-                                }
-                              >
-                                🟢 Gana{" "}
-                                {getPlayerName(
-                                  match.player2Id
+                                {match.result && (
+                                  <Typography
+                                    color="text.secondary"
+                                    sx={{
+                                      mt: 2,
+                                    }}
+                                  >
+                                    Puntos:{" "}
+                                    {getPlayerName(
+                                      match.player1Id
+                                    )}{" "}
+                                    {
+                                      match.player1Points
+                                    }{" "}
+                                    —{" "}
+                                    {
+                                      match.player2Points
+                                    }{" "}
+                                    {getPlayerName(
+                                      match.player2Id
+                                    )}
+                                  </Typography>
                                 )}
-                              </Button>
-                            </Stack>
+                              </CardContent>
+                            </Card>
+                          )
+                        )}
 
-                            {match.result && (
-                              <Typography
-                                color="text.secondary"
-                                sx={{ mt: 2 }}
-                              >
-                                Puntos:{" "}
+                        {/* ====================================
+                            BYE
+                            ==================================== */}
+
+                        {round.bye && (
+                          <Card
+                            variant="outlined"
+                          >
+                            <CardContent>
+                              <Typography variant="h6">
+                                ⭐ BYE
+                              </Typography>
+
+                              <Typography>
                                 {getPlayerName(
-                                  match.player1Id
-                                )}{" "}
-                                {match.player1Points} —{" "}
-                                {match.player2Points}{" "}
-                                {getPlayerName(
-                                  match.player2Id
+                                  round
+                                    .bye
+                                    .playerId
                                 )}
                               </Typography>
+
+                              <Typography
+                                color="text.secondary"
+                                sx={{
+                                  mt: 1,
+                                }}
+                              >
+                                3 puntos
+                              </Typography>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                )
+              )}
+
+              {/* ==========================================
+                  SIGUIENTE RONDA
+                  ========================================== */}
+
+              {!tournamentFinished && (
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={
+                    generateNextTournamentRound
+                  }
+                >
+                  🎲 Generar Ronda{" "}
+                  {rounds.length + 1}
+                </Button>
+              )}
+
+              {/* ==========================================
+                  TORNEO FINALIZADO
+                  ========================================== */}
+
+              {tournamentFinished && (
+                <>
+                  <Card
+                    sx={{
+                      mt: 2,
+                    }}
+                  >
+                    <CardContent>
+                      <Typography
+                        variant="h5"
+                        gutterBottom
+                      >
+                        🏁 Torneo finalizado
+                      </Typography>
+
+                      <Typography color="text.secondary">
+                        Se completaron las{" "}
+                        {
+                          configuredRounds
+                        }{" "}
+                        rondas
+                        configuradas.
+                      </Typography>
+                    </CardContent>
+                  </Card>
+
+                  {/* ========================================
+                      RANKING FINAL - TABLA
+                      ======================================== */}
+
+                  <Card
+                    sx={{
+                      mt: 3,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <CardContent>
+                      <Typography
+                        variant="h5"
+                        gutterBottom
+                      >
+                        🏆 Ranking final
+                      </Typography>
+
+                      <Typography
+                        color="text.secondary"
+                        sx={{
+                          mb: 3,
+                        }}
+                      >
+                        Clasificación final
+                        del torneo.
+                      </Typography>
+
+                      <div
+                        style={{
+                          width: "100%",
+                          overflowX: "auto",
+                        }}
+                      >
+                        <table
+                          style={{
+                            width: "100%",
+                            minWidth: "700px",
+                            borderCollapse:
+                              "collapse",
+                          }}
+                        >
+                          <thead>
+                            <tr>
+                              <th
+                                style={{
+                                  padding:
+                                    "12px",
+                                  textAlign:
+                                    "center",
+                                  borderBottom:
+                                    "2px solid #ddd",
+                                }}
+                              >
+                                #
+                              </th>
+
+                              <th
+                                style={{
+                                  padding:
+                                    "12px",
+                                  textAlign:
+                                    "left",
+                                  borderBottom:
+                                    "2px solid #ddd",
+                                }}
+                              >
+                                Jugador
+                              </th>
+
+                              <th
+                                style={{
+                                  padding:
+                                    "12px",
+                                  textAlign:
+                                    "left",
+                                  borderBottom:
+                                    "2px solid #ddd",
+                                }}
+                              >
+                                Categoría
+                              </th>
+
+                              <th
+                                style={{
+                                  padding:
+                                    "12px",
+                                  textAlign:
+                                    "center",
+                                  borderBottom:
+                                    "2px solid #ddd",
+                                }}
+                              >
+                                🏆 Pts
+                              </th>
+
+                              <th
+                                style={{
+                                  padding:
+                                    "12px",
+                                  textAlign:
+                                    "center",
+                                  borderBottom:
+                                    "2px solid #ddd",
+                                }}
+                              >
+                                V
+                              </th>
+
+                              <th
+                                style={{
+                                  padding:
+                                    "12px",
+                                  textAlign:
+                                    "center",
+                                  borderBottom:
+                                    "2px solid #ddd",
+                                }}
+                              >
+                                E
+                              </th>
+
+                              <th
+                                style={{
+                                  padding:
+                                    "12px",
+                                  textAlign:
+                                    "center",
+                                  borderBottom:
+                                    "2px solid #ddd",
+                                }}
+                              >
+                                D
+                              </th>
+
+                              <th
+                                style={{
+                                  padding:
+                                    "12px",
+                                  textAlign:
+                                    "center",
+                                  borderBottom:
+                                    "2px solid #ddd",
+                                }}
+                              >
+                                BYE
+                              </th>
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            {finalRanking.map(
+                              (
+                                player,
+                                index
+                              ) => {
+                                const position =
+                                  index +
+                                  1;
+
+                                let positionLabel =
+                                  position;
+
+                                if (
+                                  position ===
+                                  1
+                                ) {
+                                  positionLabel =
+                                    "🥇";
+                                }
+
+                                if (
+                                  position ===
+                                  2
+                                ) {
+                                  positionLabel =
+                                    "🥈";
+                                }
+
+                                if (
+                                  position ===
+                                  3
+                                ) {
+                                  positionLabel =
+                                    "🥉";
+                                }
+
+                                return (
+                                  <tr
+                                    key={
+                                      player.playerId
+                                    }
+                                  >
+                                    <td
+                                      style={{
+                                        padding:
+                                          "12px",
+                                        textAlign:
+                                          "center",
+                                        fontWeight:
+                                          position <=
+                                          3
+                                            ? "bold"
+                                            : "normal",
+                                        borderBottom:
+                                          "1px solid #eee",
+                                      }}
+                                    >
+                                      {
+                                        positionLabel
+                                      }
+                                    </td>
+
+                                    <td
+                                      style={{
+                                        padding:
+                                          "12px",
+                                        fontWeight:
+                                          position <=
+                                          3
+                                            ? "bold"
+                                            : "normal",
+                                        borderBottom:
+                                          "1px solid #eee",
+                                      }}
+                                    >
+                                      {
+                                        player.name
+                                      }
+                                    </td>
+
+                                    <td
+                                      style={{
+                                        padding:
+                                          "12px",
+                                        borderBottom:
+                                          "1px solid #eee",
+                                      }}
+                                    >
+                                      {
+                                        player.category
+                                      }
+                                    </td>
+
+                                    <td
+                                      style={{
+                                        padding:
+                                          "12px",
+                                        textAlign:
+                                          "center",
+                                        fontWeight:
+                                          "bold",
+                                        borderBottom:
+                                          "1px solid #eee",
+                                      }}
+                                    >
+                                      {
+                                        player.points
+                                      }
+                                    </td>
+
+                                    <td
+                                      style={{
+                                        padding:
+                                          "12px",
+                                        textAlign:
+                                          "center",
+                                        borderBottom:
+                                          "1px solid #eee",
+                                      }}
+                                    >
+                                      {
+                                        player.wins
+                                      }
+                                    </td>
+
+                                    <td
+                                      style={{
+                                        padding:
+                                          "12px",
+                                        textAlign:
+                                          "center",
+                                        borderBottom:
+                                          "1px solid #eee",
+                                      }}
+                                    >
+                                      {
+                                        player.draws
+                                      }
+                                    </td>
+
+                                    <td
+                                      style={{
+                                        padding:
+                                          "12px",
+                                        textAlign:
+                                          "center",
+                                        borderBottom:
+                                          "1px solid #eee",
+                                      }}
+                                    >
+                                      {
+                                        player.losses
+                                      }
+                                    </td>
+
+                                    <td
+                                      style={{
+                                        padding:
+                                          "12px",
+                                        textAlign:
+                                          "center",
+                                        borderBottom:
+                                          "1px solid #eee",
+                                      }}
+                                    >
+                                      {player.byes >
+                                      0
+                                        ? `⭐ ${player.byes}`
+                                        : "—"}
+                                    </td>
+                                  </tr>
+                                );
+                              }
                             )}
-                          </CardContent>
-                        </Card>
-                      ))}
-
-                      {/* BYE */}
-
-                      {round.bye && (
-                        <Card variant="outlined">
-                          <CardContent>
-                            <Typography variant="h6">
-                              ⭐ BYE
-                            </Typography>
-
-                            <Typography>
-                              {getPlayerName(
-                                round.bye.playerId
-                              )}
-                            </Typography>
-
-                            <Typography
-                              color="text.secondary"
-                              sx={{ mt: 1 }}
-                            >
-                              3 puntos
-                            </Typography>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
-
-              {/* SIGUIENTE RONDA */}
-
-              <Button
-                variant="contained"
-                size="large"
-                onClick={generateNextTournamentRound}
-              >
-                🎲 Generar Ronda {rounds.length + 1}
-              </Button>
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </Stack>
           )}
         </CardContent>

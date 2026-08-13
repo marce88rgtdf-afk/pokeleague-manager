@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import {
   Card,
   CardContent,
@@ -9,17 +10,33 @@ import {
   Typography,
 } from "@mui/material";
 
-import { getTournaments, getPlayers } from "../services/storage";
+import {
+  getTournaments,
+  getPlayers,
+} from "../services/storage";
 
 export default function Standings() {
-  const [tournaments] = useState(getTournaments());
-  const [players] = useState(getPlayers());
-
   const [selectedTournamentId, setSelectedTournamentId] =
-    useState(tournaments[0]?.id || "");
+    useState("");
+
+  const players = getPlayers();
+
+  // Siempre obtenemos la versión actual de los torneos
+  const tournaments = getTournaments();
+
+  // Si todavía no hay una selección, usamos el primer torneo
+  const activeTournamentId =
+    selectedTournamentId &&
+    tournaments.some(
+      (tournament) =>
+        tournament.id === selectedTournamentId
+    )
+      ? selectedTournamentId
+      : tournaments[0]?.id || "";
 
   const selectedTournament = tournaments.find(
-    (tournament) => tournament.id === selectedTournamentId
+    (tournament) =>
+      tournament.id === activeTournamentId
   );
 
   const calculateStandings = () => {
@@ -27,40 +44,52 @@ export default function Standings() {
       return [];
     }
 
-    const standings = selectedTournament.playerIds.map(
-      (playerId) => {
-        const player = players.find(
-          (item) => item.id === playerId
-        );
+    const standings =
+      selectedTournament.playerIds.map(
+        (playerId) => {
+          const player = players.find(
+            (item) => item.id === playerId
+          );
 
-        return {
-          playerId,
-          name: player
-            ? `${player.name} ${player.lastName}`
-            : "Jugador desconocido",
-          category: player?.category || "",
-          points: 0,
-          wins: 0,
-          draws: 0,
-          losses: 0,
-          byes: 0,
-        };
-      }
-    );
+          return {
+            playerId,
+            name: player
+              ? `${player.name} ${player.lastName}`
+              : "Jugador desconocido",
+            category: player?.category || "",
+            points: 0,
+            wins: 0,
+            draws: 0,
+            losses: 0,
+            byes: 0,
+          };
+        }
+      );
 
     const getStanding = (playerId) =>
       standings.find(
-        (standing) => standing.playerId === playerId
+        (standing) =>
+          standing.playerId === playerId
       );
 
-    const rounds = selectedTournament.rounds || [];
+    const rounds =
+      selectedTournament.rounds || [];
 
     rounds.forEach((round) => {
-      round.matches.forEach((match) => {
-        const player1 = getStanding(match.player1Id);
-        const player2 = getStanding(match.player2Id);
+      round.matches?.forEach((match) => {
+        const player1 = getStanding(
+          match.player1Id
+        );
 
-        if (!player1 || !player2 || !match.result) {
+        const player2 = getStanding(
+          match.player2Id
+        );
+
+        if (
+          !player1 ||
+          !player2 ||
+          !match.result
+        ) {
           return;
         }
 
@@ -73,6 +102,7 @@ export default function Standings() {
         if (match.result === "DRAW") {
           player1.points += 1;
           player2.points += 1;
+
           player1.draws += 1;
           player2.draws += 1;
         }
@@ -121,8 +151,8 @@ export default function Standings() {
         color="text.secondary"
         sx={{ mb: 3 }}
       >
-        Clasificación automática según los resultados del
-        torneo.
+        Clasificación automática según los
+        resultados de cada torneo.
       </Typography>
 
       {tournaments.length === 0 ? (
@@ -138,9 +168,11 @@ export default function Standings() {
           <TextField
             select
             label="Seleccionar torneo"
-            value={selectedTournamentId}
+            value={activeTournamentId}
             onChange={(event) =>
-              setSelectedTournamentId(event.target.value)
+              setSelectedTournamentId(
+                event.target.value
+              )
             }
             fullWidth
             sx={{ mb: 3 }}
@@ -170,61 +202,74 @@ export default function Standings() {
                   sx={{ mb: 3 }}
                 >
                   Rondas jugadas:{" "}
-                  {(selectedTournament.rounds || []).length}
+                  {
+                    (
+                      selectedTournament.rounds ||
+                      []
+                    ).length
+                  }
                 </Typography>
 
                 <Stack spacing={1}>
-                  {standings.map((player, index) => (
-                    <Card
-                      key={player.playerId}
-                      variant="outlined"
-                    >
-                      <CardContent>
-                        <Stack
-                          direction={{
-                            xs: "column",
-                            sm: "row",
-                          }}
-                          justifyContent="space-between"
-                          spacing={2}
-                        >
-                          <div>
-                            <Typography variant="h6">
-                              {index + 1}. {player.name}
-                            </Typography>
+                  {standings.map(
+                    (player, index) => (
+                      <Card
+                        key={player.playerId}
+                        variant="outlined"
+                      >
+                        <CardContent>
+                          <Stack
+                            direction={{
+                              xs: "column",
+                              sm: "row",
+                            }}
+                            justifyContent="space-between"
+                            spacing={2}
+                          >
+                            <div>
+                              <Typography variant="h6">
+                                {index + 1}.{" "}
+                                {player.name}
+                              </Typography>
 
-                            <Typography
-                              color="text.secondary"
-                            >
-                              {player.category}
-                            </Typography>
-                          </div>
-
-                          <div>
-                            <Typography variant="h6">
-                              🏆 {player.points} pts
-                            </Typography>
-
-                            <Typography
-                              color="text.secondary"
-                            >
-                              {player.wins}V ·{" "}
-                              {player.draws}E ·{" "}
-                              {player.losses}D
-                            </Typography>
-
-                            {player.byes > 0 && (
                               <Typography
                                 color="text.secondary"
                               >
-                                ⭐ BYE: {player.byes}
+                                {player.category}
                               </Typography>
-                            )}
-                          </div>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  ))}
+                            </div>
+
+                            <div>
+                              <Typography variant="h6">
+                                🏆{" "}
+                                {player.points} pts
+                              </Typography>
+
+                              <Typography
+                                color="text.secondary"
+                              >
+                                {player.wins}V ·{" "}
+                                {player.draws}E ·{" "}
+                                {player.losses}D
+                              </Typography>
+
+                              {player.byes >
+                                0 && (
+                                <Typography
+                                  color="text.secondary"
+                                >
+                                  ⭐ BYE:{" "}
+                                  {
+                                    player.byes
+                                  }
+                                </Typography>
+                              )}
+                            </div>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    )
+                  )}
                 </Stack>
               </CardContent>
             </Card>
