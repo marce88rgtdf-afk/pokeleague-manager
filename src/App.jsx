@@ -7,6 +7,7 @@ import Tournament from "./pages/Tournament";
 import Standings from "./pages/Standings";
 import MisTorneos from "./pages/MisTorneos";
 import TournamentDetail from "./pages/TournamentDetail";
+import Settings from "./pages/Settings";
 
 export default function App() {
   return (
@@ -33,6 +34,11 @@ export default function App() {
         <Route
           path="/my-tournaments"
           element={<MisTorneos />}
+        />
+
+        <Route
+          path="/settings"
+          element={<Settings />}
         />
       </Routes>
     </>

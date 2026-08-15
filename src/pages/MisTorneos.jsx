@@ -16,6 +16,17 @@ export default function MisTorneos() {
 
   return (
     <Container sx={{ mt: 4, mb: 4 }}>
+      {/* VOLVER AL DASHBOARD */}
+
+      <Button
+        component={Link}
+        to="/"
+        variant="outlined"
+        sx={{ mb: 3 }}
+      >
+        ← Volver al Dashboard
+      </Button>
+
       <Typography variant="h4" gutterBottom>
         🏆 Mis Torneos
       </Typography>

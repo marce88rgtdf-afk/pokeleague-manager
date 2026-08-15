@@ -14,6 +14,8 @@ import {
   Typography,
 } from "@mui/material";
 
+import { Link } from "react-router-dom";
+
 import {
   getPlayers,
   getTournaments,
@@ -188,6 +190,17 @@ export default function Tournament() {
         mb: 4,
       }}
     >
+      {/* VOLVER AL DASHBOARD */}
+
+      <Button
+        component={Link}
+        to="/"
+        variant="outlined"
+        sx={{ mb: 3 }}
+      >
+        ← Volver al Dashboard
+      </Button>
+
       <Typography
         variant="h4"
         gutterBottom

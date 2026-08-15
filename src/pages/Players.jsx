@@ -10,6 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 
+import { Link } from "react-router-dom";
 import { getPlayers, savePlayers } from "../services/storage";
 
 export default function Players() {
@@ -97,14 +98,26 @@ export default function Players() {
   };
 
   const filteredPlayers = players.filter((player) => {
-    const text = `${player.name} ${player.lastName} ${player.playerId || ""}`
-      .toLowerCase();
+    const text = `${player.name} ${player.lastName} ${
+      player.playerId || ""
+    }`.toLowerCase();
 
     return text.includes(search.toLowerCase());
   });
 
   return (
     <Container sx={{ mt: 4, mb: 4 }}>
+      {/* VOLVER AL DASHBOARD */}
+
+      <Button
+        component={Link}
+        to="/"
+        variant="outlined"
+        sx={{ mb: 3 }}
+      >
+        ← Volver al Dashboard
+      </Button>
+
       <Typography variant="h4" gutterBottom>
         👥 Jugadores
       </Typography>

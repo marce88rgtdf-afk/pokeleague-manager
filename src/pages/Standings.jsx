@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useMemo } from "react";
 
 import {
   Card,
   CardContent,
   Container,
-  MenuItem,
+  Divider,
   Stack,
-  TextField,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Typography,
 } from "@mui/material";
 
@@ -15,267 +20,464 @@ import {
   getPlayers,
 } from "../services/storage";
 
-export default function Standings() {
-  const [selectedTournamentId, setSelectedTournamentId] =
-    useState("");
+import {
+  calculatePlayerPoints,
+} from "../services/swiss";
 
+import BackToDashboard from "../components/BackToDashboard";
+
+export default function Standings() {
+  const tournaments = getTournaments();
   const players = getPlayers();
 
-  // Siempre obtenemos la versión actual de los torneos
-  const tournaments = getTournaments();
+  /*
+   * ==================================================
+   * CALCULAR RANKING
+   * ==================================================
+   */
 
-  // Si todavía no hay una selección, usamos el primer torneo
-  const activeTournamentId =
-    selectedTournamentId &&
-    tournaments.some(
-      (tournament) =>
-        tournament.id === selectedTournamentId
-    )
-      ? selectedTournamentId
-      : tournaments[0]?.id || "";
+  const standings = useMemo(() => {
+    const ranking = players.map((player) => {
+      let points = 0;
+      let wins = 0;
+      let draws = 0;
+      let losses = 0;
+      let byes = 0;
 
-  const selectedTournament = tournaments.find(
-    (tournament) =>
-      tournament.id === activeTournamentId
-  );
-
-  const calculateStandings = () => {
-    if (!selectedTournament) {
-      return [];
-    }
-
-    const standings =
-      selectedTournament.playerIds.map(
-        (playerId) => {
-          const player = players.find(
-            (item) => item.id === playerId
-          );
-
-          return {
-            playerId,
-            name: player
-              ? `${player.name} ${player.lastName}`
-              : "Jugador desconocido",
-            category: player?.category || "",
-            points: 0,
-            wins: 0,
-            draws: 0,
-            losses: 0,
-            byes: 0,
-          };
-        }
-      );
-
-    const getStanding = (playerId) =>
-      standings.find(
-        (standing) =>
-          standing.playerId === playerId
-      );
-
-    const rounds =
-      selectedTournament.rounds || [];
-
-    rounds.forEach((round) => {
-      round.matches?.forEach((match) => {
-        const player1 = getStanding(
-          match.player1Id
-        );
-
-        const player2 = getStanding(
-          match.player2Id
-        );
-
+      tournaments.forEach((tournament) => {
+        /*
+         * Solo contamos al jugador si participa
+         * en este torneo.
+         */
         if (
-          !player1 ||
-          !player2 ||
-          !match.result
+          !tournament.playerIds?.includes(
+            player.id
+          )
         ) {
           return;
         }
 
-        if (match.result === "PLAYER1_WIN") {
-          player1.points += 3;
-          player1.wins += 1;
-          player2.losses += 1;
-        }
+        const rounds =
+          tournament.rounds || [];
 
-        if (match.result === "DRAW") {
-          player1.points += 1;
-          player2.points += 1;
-
-          player1.draws += 1;
-          player2.draws += 1;
-        }
-
-        if (match.result === "PLAYER2_WIN") {
-          player2.points += 3;
-          player2.wins += 1;
-          player1.losses += 1;
-        }
-      });
-
-      if (round.bye) {
-        const byePlayer = getStanding(
-          round.bye.playerId
+        /*
+         * Puntos
+         */
+        points += calculatePlayerPoints(
+          player.id,
+          rounds
         );
 
-        if (byePlayer) {
-          byePlayer.points += 3;
-          byePlayer.byes += 1;
+        /*
+         * Resultados
+         */
+        rounds.forEach((round) => {
+          round.matches?.forEach(
+            (match) => {
+              if (
+                match.player1Id !== player.id &&
+                match.player2Id !== player.id
+              ) {
+                return;
+              }
+
+              if (
+                match.result === "DRAW"
+              ) {
+                draws++;
+                return;
+              }
+
+              if (
+                match.result ===
+                "PLAYER1_WIN"
+              ) {
+                if (
+                  match.player1Id ===
+                  player.id
+                ) {
+                  wins++;
+                } else {
+                  losses++;
+                }
+
+                return;
+              }
+
+              if (
+                match.result ===
+                "PLAYER2_WIN"
+              ) {
+                if (
+                  match.player2Id ===
+                  player.id
+                ) {
+                  wins++;
+                } else {
+                  losses++;
+                }
+              }
+            }
+          );
+
+          /*
+           * BYE
+           */
+          if (
+            round.bye?.playerId ===
+            player.id
+          ) {
+            byes++;
+          }
+        });
+      });
+
+      return {
+        playerId: player.id,
+        name: `${player.name} ${player.lastName}`,
+        category: player.category || "",
+        points,
+        wins,
+        draws,
+        losses,
+        byes,
+      };
+    });
+
+    /*
+     * ==================================================
+     * ORDEN DEL RANKING
+     * ==================================================
+     *
+     * 1. Puntos
+     * 2. Victorias
+     * 3. Diferencia V-D
+     * 4. Nombre
+     */
+
+    return ranking
+      .filter(
+        (player) =>
+          player.points > 0 ||
+          player.wins > 0 ||
+          player.draws > 0 ||
+          player.losses > 0 ||
+          player.byes > 0
+      )
+      .sort((a, b) => {
+        if (
+          b.points !== a.points
+        ) {
+          return (
+            b.points -
+            a.points
+          );
         }
-      }
-    });
 
-    return standings.sort((a, b) => {
-      if (b.points !== a.points) {
-        return b.points - a.points;
-      }
+        if (
+          b.wins !== a.wins
+        ) {
+          return (
+            b.wins -
+            a.wins
+          );
+        }
 
-      if (b.wins !== a.wins) {
-        return b.wins - a.wins;
-      }
+        const scoreA =
+          a.wins -
+          a.losses;
 
-      return a.name.localeCompare(b.name);
-    });
+        const scoreB =
+          b.wins -
+          b.losses;
+
+        if (
+          scoreB !== scoreA
+        ) {
+          return (
+            scoreB -
+            scoreA
+          );
+        }
+
+        return a.name.localeCompare(
+          b.name
+        );
+      });
+  }, [players, tournaments]);
+
+  /*
+   * ==================================================
+   * POSICIÓN
+   * ==================================================
+   */
+
+  const getPositionDisplay = (
+    position
+  ) => {
+    if (position === 1) {
+      return "🥇";
+    }
+
+    if (position === 2) {
+      return "🥈";
+    }
+
+    if (position === 3) {
+      return "🥉";
+    }
+
+    return position;
   };
 
-  const standings = calculateStandings();
+  /*
+   * ==================================================
+   * INTERFAZ
+   * ==================================================
+   */
 
   return (
-    <Container sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        📊 Ranking
+    <Container
+      sx={{
+        mt: 4,
+        mb: 4,
+      }}
+    >
+      {/* BOTÓN VOLVER AL DASHBOARD */}
+
+      <BackToDashboard />
+
+      <Typography
+        variant="h4"
+        gutterBottom
+      >
+        🏆 Ranking
       </Typography>
 
       <Typography
         color="text.secondary"
         sx={{ mb: 3 }}
       >
-        Clasificación automática según los
-        resultados de cada torneo.
+        Clasificación general de jugadores.
       </Typography>
 
-      {tournaments.length === 0 ? (
-        <Card>
-          <CardContent>
-            <Typography color="text.secondary">
-              Todavía no hay torneos creados.
-            </Typography>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <TextField
-            select
-            label="Seleccionar torneo"
-            value={activeTournamentId}
-            onChange={(event) =>
-              setSelectedTournamentId(
-                event.target.value
-              )
-            }
-            fullWidth
+      <Card>
+        <CardContent>
+          <Typography
+            variant="h5"
+            gutterBottom
+          >
+            🏆 Tabla de posiciones
+          </Typography>
+
+          <Typography
+            color="text.secondary"
             sx={{ mb: 3 }}
           >
-            {tournaments.map((tournament) => (
-              <MenuItem
-                key={tournament.id}
-                value={tournament.id}
+            Ranking ordenado por puntos,
+            victorias y diferencia de resultados.
+          </Typography>
+
+          <Divider sx={{ mb: 2 }} />
+
+          {standings.length === 0 ? (
+            <Stack
+              alignItems="center"
+              sx={{ py: 5 }}
+            >
+              <Typography
+                color="text.secondary"
               >
-                {tournament.name}
-              </MenuItem>
-            ))}
-          </TextField>
+                Todavía no hay resultados
+                para mostrar.
+              </Typography>
+            </Stack>
+          ) : (
+            <TableContainer>
+              <Table
+                sx={{
+                  minWidth: 750,
+                }}
+              >
+                <TableHead>
+                  <TableRow>
+                    <TableCell
+                      align="center"
+                      sx={{
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Pos.
+                    </TableCell>
 
-          {selectedTournament && (
-            <Card>
-              <CardContent>
-                <Typography
-                  variant="h5"
-                  gutterBottom
-                >
-                  🏆 {selectedTournament.name}
-                </Typography>
+                    <TableCell
+                      sx={{
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Jugador
+                    </TableCell>
 
-                <Typography
-                  color="text.secondary"
-                  sx={{ mb: 3 }}
-                >
-                  Rondas jugadas:{" "}
-                  {
-                    (
-                      selectedTournament.rounds ||
-                      []
-                    ).length
-                  }
-                </Typography>
+                    <TableCell
+                      sx={{
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Categoría
+                    </TableCell>
 
-                <Stack spacing={1}>
+                    <TableCell
+                      align="center"
+                      sx={{
+                        fontWeight: "bold",
+                      }}
+                    >
+                      🏆 Pts
+                    </TableCell>
+
+                    <TableCell
+                      align="center"
+                      sx={{
+                        fontWeight: "bold",
+                      }}
+                    >
+                      V
+                    </TableCell>
+
+                    <TableCell
+                      align="center"
+                      sx={{
+                        fontWeight: "bold",
+                      }}
+                    >
+                      E
+                    </TableCell>
+
+                    <TableCell
+                      align="center"
+                      sx={{
+                        fontWeight: "bold",
+                      }}
+                    >
+                      D
+                    </TableCell>
+
+                    <TableCell
+                      align="center"
+                      sx={{
+                        fontWeight: "bold",
+                      }}
+                    >
+                      ⭐ BYE
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+
+                <TableBody>
                   {standings.map(
-                    (player, index) => (
-                      <Card
-                        key={player.playerId}
-                        variant="outlined"
-                      >
-                        <CardContent>
-                          <Stack
-                            direction={{
-                              xs: "column",
-                              sm: "row",
+                    (
+                      player,
+                      index
+                    ) => {
+                      const position =
+                        index + 1;
+
+                      return (
+                        <TableRow
+                          key={
+                            player.playerId
+                          }
+                          hover
+                        >
+                          <TableCell
+                            align="center"
+                            sx={{
+                              fontWeight:
+                                position <=
+                                3
+                                  ? "bold"
+                                  : "normal",
+                              fontSize:
+                                position <=
+                                3
+                                  ? "1.1rem"
+                                  : "1rem",
                             }}
-                            justifyContent="space-between"
-                            spacing={2}
                           >
-                            <div>
-                              <Typography variant="h6">
-                                {index + 1}.{" "}
-                                {player.name}
-                              </Typography>
+                            {getPositionDisplay(
+                              position
+                            )}
+                          </TableCell>
 
-                              <Typography
-                                color="text.secondary"
-                              >
-                                {player.category}
-                              </Typography>
-                            </div>
+                          <TableCell>
+                            <Typography
+                              fontWeight="bold"
+                            >
+                              {
+                                player.name
+                              }
+                            </Typography>
+                          </TableCell>
 
-                            <div>
-                              <Typography variant="h6">
-                                🏆{" "}
-                                {player.points} pts
-                              </Typography>
+                          <TableCell>
+                            {
+                              player.category
+                            }
+                          </TableCell>
 
-                              <Typography
-                                color="text.secondary"
-                              >
-                                {player.wins}V ·{" "}
-                                {player.draws}E ·{" "}
-                                {player.losses}D
-                              </Typography>
+                          <TableCell
+                            align="center"
+                          >
+                            <Typography
+                              fontWeight="bold"
+                            >
+                              {
+                                player.points
+                              }
+                            </Typography>
+                          </TableCell>
 
-                              {player.byes >
-                                0 && (
-                                <Typography
-                                  color="text.secondary"
-                                >
-                                  ⭐ BYE:{" "}
-                                  {
-                                    player.byes
-                                  }
-                                </Typography>
-                              )}
-                            </div>
-                          </Stack>
-                        </CardContent>
-                      </Card>
-                    )
+                          <TableCell
+                            align="center"
+                          >
+                            {
+                              player.wins
+                            }
+                          </TableCell>
+
+                          <TableCell
+                            align="center"
+                          >
+                            {
+                              player.draws
+                            }
+                          </TableCell>
+
+                          <TableCell
+                            align="center"
+                          >
+                            {
+                              player.losses
+                            }
+                          </TableCell>
+
+                          <TableCell
+                            align="center"
+                          >
+                            {
+                              player.byes
+                            }
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
                   )}
-                </Stack>
-              </CardContent>
-            </Card>
+                </TableBody>
+              </Table>
+            </TableContainer>
           )}
-        </>
-      )}
+        </CardContent>
+      </Card>
     </Container>
   );
 }

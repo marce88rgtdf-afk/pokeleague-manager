@@ -7,7 +7,14 @@ import {
   Container,
   Divider,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Typography,
+  Paper,
 } from "@mui/material";
 
 import { useParams, Link } from "react-router-dom";
@@ -45,10 +52,10 @@ export default function TournamentDetail() {
 
         <Button
           component={Link}
-          to="/my-tournaments"
+          to="/"
           variant="contained"
         >
-          Volver a Mis Torneos
+          🏠 Volver al Dashboard
         </Button>
       </Container>
     );
@@ -62,7 +69,7 @@ export default function TournamentDetail() {
 
   /*
    * ==================================================
-   * RONDAS CONFIGURADAS
+   * CANTIDAD DE RONDAS CONFIGURADAS
    * ==================================================
    */
 
@@ -72,12 +79,6 @@ export default function TournamentDetail() {
     tournament.numberOfRounds ||
     tournament.roundsConfigured ||
     0;
-
-  /*
-   * ==================================================
-   * ESTADO DEL TORNEO
-   * ==================================================
-   */
 
   const tournamentFinished =
     configuredRounds > 0 &&
@@ -187,11 +188,6 @@ export default function TournamentDetail() {
       return;
     }
 
-    /*
-     * Si ya se completaron todas las rondas
-     * configuradas, el torneo finaliza.
-     */
-
     if (
       configuredRounds > 0 &&
       rounds.length >= configuredRounds
@@ -255,11 +251,6 @@ export default function TournamentDetail() {
     matchId,
     result
   ) => {
-    /*
-     * No permitimos modificar resultados
-     * si el torneo ya está finalizado.
-     */
-
     if (tournamentFinished) {
       alert(
         "El torneo ya está finalizado. Los resultados finales no pueden modificarse."
@@ -489,12 +480,14 @@ export default function TournamentDetail() {
         );
 
       /*
-       * Orden del ranking:
+       * ==================================================
+       * ORDEN DEL RANKING
        *
        * 1. Puntos
        * 2. Victorias
        * 3. Diferencia V-D
        * 4. Nombre
+       * ==================================================
        */
 
       return ranking.sort(
@@ -562,8 +555,22 @@ export default function TournamentDetail() {
         mb: 4,
       }}
     >
+
       {/* ================================================
-          CABECERA
+          VOLVER AL DASHBOARD
+          ================================================ */}
+
+      <Button
+        component={Link}
+        to="/"
+        variant="outlined"
+        sx={{ mb: 3 }}
+      >
+        🏠 Volver al Dashboard
+      </Button>
+
+      {/* ================================================
+          ENCABEZADO
           ================================================ */}
 
       <Typography
@@ -897,9 +904,7 @@ export default function TournamentDetail() {
                           )
                         )}
 
-                        {/* ====================================
-                            BYE
-                            ==================================== */}
+                        {/* BYE */}
 
                         {round.bye && (
                           <Card
@@ -983,13 +988,12 @@ export default function TournamentDetail() {
                   </Card>
 
                   {/* ========================================
-                      RANKING FINAL - TABLA
+                      RANKING FINAL
                       ======================================== */}
 
                   <Card
                     sx={{
                       mt: 3,
-                      overflow: "hidden",
                     }}
                   >
                     <CardContent>
@@ -1010,306 +1014,196 @@ export default function TournamentDetail() {
                         del torneo.
                       </Typography>
 
-                      <div
-                        style={{
-                          width: "100%",
+                      {/* ==================================
+                          TABLA FINAL
+                          ================================== */}
+
+                      <TableContainer
+                        component={Paper}
+                        variant="outlined"
+                        sx={{
                           overflowX: "auto",
                         }}
                       >
-                        <table
-                          style={{
-                            width: "100%",
-                            minWidth: "700px",
-                            borderCollapse:
-                              "collapse",
+                        <Table
+                          size="small"
+                          sx={{
+                            minWidth: 700,
                           }}
                         >
-                          <thead>
-                            <tr>
-                              <th
-                                style={{
-                                  padding:
-                                    "12px",
-                                  textAlign:
-                                    "center",
-                                  borderBottom:
-                                    "2px solid #ddd",
+                          <TableHead>
+                            <TableRow>
+                              <TableCell
+                                align="center"
+                                sx={{
+                                  fontWeight:
+                                    "bold",
                                 }}
                               >
-                                #
-                              </th>
+                                Pos.
+                              </TableCell>
 
-                              <th
-                                style={{
-                                  padding:
-                                    "12px",
-                                  textAlign:
-                                    "left",
-                                  borderBottom:
-                                    "2px solid #ddd",
+                              <TableCell
+                                sx={{
+                                  fontWeight:
+                                    "bold",
                                 }}
                               >
                                 Jugador
-                              </th>
+                              </TableCell>
 
-                              <th
-                                style={{
-                                  padding:
-                                    "12px",
-                                  textAlign:
-                                    "left",
-                                  borderBottom:
-                                    "2px solid #ddd",
+                              <TableCell
+                                sx={{
+                                  fontWeight:
+                                    "bold",
                                 }}
                               >
                                 Categoría
-                              </th>
+                              </TableCell>
 
-                              <th
-                                style={{
-                                  padding:
-                                    "12px",
-                                  textAlign:
-                                    "center",
-                                  borderBottom:
-                                    "2px solid #ddd",
+                              <TableCell
+                                align="center"
+                                sx={{
+                                  fontWeight:
+                                    "bold",
                                 }}
                               >
-                                🏆 Pts
-                              </th>
+                                Pts
+                              </TableCell>
 
-                              <th
-                                style={{
-                                  padding:
-                                    "12px",
-                                  textAlign:
-                                    "center",
-                                  borderBottom:
-                                    "2px solid #ddd",
+                              <TableCell
+                                align="center"
+                                sx={{
+                                  fontWeight:
+                                    "bold",
                                 }}
                               >
                                 V
-                              </th>
+                              </TableCell>
 
-                              <th
-                                style={{
-                                  padding:
-                                    "12px",
-                                  textAlign:
-                                    "center",
-                                  borderBottom:
-                                    "2px solid #ddd",
+                              <TableCell
+                                align="center"
+                                sx={{
+                                  fontWeight:
+                                    "bold",
                                 }}
                               >
                                 E
-                              </th>
+                              </TableCell>
 
-                              <th
-                                style={{
-                                  padding:
-                                    "12px",
-                                  textAlign:
-                                    "center",
-                                  borderBottom:
-                                    "2px solid #ddd",
+                              <TableCell
+                                align="center"
+                                sx={{
+                                  fontWeight:
+                                    "bold",
                                 }}
                               >
                                 D
-                              </th>
+                              </TableCell>
 
-                              <th
-                                style={{
-                                  padding:
-                                    "12px",
-                                  textAlign:
-                                    "center",
-                                  borderBottom:
-                                    "2px solid #ddd",
+                              <TableCell
+                                align="center"
+                                sx={{
+                                  fontWeight:
+                                    "bold",
                                 }}
                               >
                                 BYE
-                              </th>
-                            </tr>
-                          </thead>
+                              </TableCell>
+                            </TableRow>
+                          </TableHead>
 
-                          <tbody>
+                          <TableBody>
                             {finalRanking.map(
                               (
                                 player,
                                 index
-                              ) => {
-                                const position =
-                                  index +
-                                  1;
-
-                                let positionLabel =
-                                  position;
-
-                                if (
-                                  position ===
-                                  1
-                                ) {
-                                  positionLabel =
-                                    "🥇";
-                                }
-
-                                if (
-                                  position ===
-                                  2
-                                ) {
-                                  positionLabel =
-                                    "🥈";
-                                }
-
-                                if (
-                                  position ===
-                                  3
-                                ) {
-                                  positionLabel =
-                                    "🥉";
-                                }
-
-                                return (
-                                  <tr
-                                    key={
-                                      player.playerId
-                                    }
-                                  >
-                                    <td
-                                      style={{
-                                        padding:
-                                          "12px",
-                                        textAlign:
-                                          "center",
-                                        fontWeight:
-                                          position <=
-                                          3
-                                            ? "bold"
-                                            : "normal",
-                                        borderBottom:
-                                          "1px solid #eee",
-                                      }}
-                                    >
+                              ) => (
+                                <TableRow
+                                  key={
+                                    player.playerId
+                                  }
+                                  sx={{
+                                    "&:last-child td, &:last-child th":
                                       {
-                                        positionLabel
-                                      }
-                                    </td>
+                                        border: 0,
+                                      },
+                                  }}
+                                >
+                                  <TableCell align="center">
+                                    <Typography
+                                      fontWeight="bold"
+                                    >
+                                      {index ===
+                                      0
+                                        ? "🥇"
+                                        : index ===
+                                          1
+                                        ? "🥈"
+                                        : index ===
+                                          2
+                                        ? "🥉"
+                                        : index +
+                                          1}
+                                    </Typography>
+                                  </TableCell>
 
-                                    <td
-                                      style={{
-                                        padding:
-                                          "12px",
-                                        fontWeight:
-                                          position <=
-                                          3
-                                            ? "bold"
-                                            : "normal",
-                                        borderBottom:
-                                          "1px solid #eee",
-                                      }}
+                                  <TableCell>
+                                    <Typography
+                                      fontWeight="bold"
                                     >
                                       {
                                         player.name
                                       }
-                                    </td>
+                                    </Typography>
+                                  </TableCell>
 
-                                    <td
-                                      style={{
-                                        padding:
-                                          "12px",
-                                        borderBottom:
-                                          "1px solid #eee",
-                                      }}
-                                    >
-                                      {
-                                        player.category
-                                      }
-                                    </td>
+                                  <TableCell>
+                                    {
+                                      player.category
+                                    }
+                                  </TableCell>
 
-                                    <td
-                                      style={{
-                                        padding:
-                                          "12px",
-                                        textAlign:
-                                          "center",
-                                        fontWeight:
-                                          "bold",
-                                        borderBottom:
-                                          "1px solid #eee",
-                                      }}
+                                  <TableCell align="center">
+                                    <Typography
+                                      fontWeight="bold"
                                     >
                                       {
                                         player.points
                                       }
-                                    </td>
+                                    </Typography>
+                                  </TableCell>
 
-                                    <td
-                                      style={{
-                                        padding:
-                                          "12px",
-                                        textAlign:
-                                          "center",
-                                        borderBottom:
-                                          "1px solid #eee",
-                                      }}
-                                    >
-                                      {
-                                        player.wins
-                                      }
-                                    </td>
+                                  <TableCell align="center">
+                                    {
+                                      player.wins
+                                    }
+                                  </TableCell>
 
-                                    <td
-                                      style={{
-                                        padding:
-                                          "12px",
-                                        textAlign:
-                                          "center",
-                                        borderBottom:
-                                          "1px solid #eee",
-                                      }}
-                                    >
-                                      {
-                                        player.draws
-                                      }
-                                    </td>
+                                  <TableCell align="center">
+                                    {
+                                      player.draws
+                                    }
+                                  </TableCell>
 
-                                    <td
-                                      style={{
-                                        padding:
-                                          "12px",
-                                        textAlign:
-                                          "center",
-                                        borderBottom:
-                                          "1px solid #eee",
-                                      }}
-                                    >
-                                      {
-                                        player.losses
-                                      }
-                                    </td>
+                                  <TableCell align="center">
+                                    {
+                                      player.losses
+                                    }
+                                  </TableCell>
 
-                                    <td
-                                      style={{
-                                        padding:
-                                          "12px",
-                                        textAlign:
-                                          "center",
-                                        borderBottom:
-                                          "1px solid #eee",
-                                      }}
-                                    >
-                                      {player.byes >
-                                      0
-                                        ? `⭐ ${player.byes}`
-                                        : "—"}
-                                    </td>
-                                  </tr>
-                                );
-                              }
+                                  <TableCell align="center">
+                                    {player.byes >
+                                    0
+                                      ? `⭐ ${player.byes}`
+                                      : "—"}
+                                  </TableCell>
+                                </TableRow>
+                              )
                             )}
-                          </tbody>
-                        </table>
-                      </div>
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
                     </CardContent>
                   </Card>
                 </>
